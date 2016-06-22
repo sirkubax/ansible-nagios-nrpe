@@ -1,0 +1,47 @@
+---
+#trick to skip some unwanted task in --check mode (dry run)
+  - name: 'Skip check probe'
+    shell: 'echo nothing'
+    register: skip_check
+
+  - name: "install packages"
+    apt: name={{ item }} force=yes
+    with_items:
+        - nagios-nrpe-server
+        - fping
+
+  - name: "clone git repo"
+    git: 
+      #repo: git@github.com:harisekhon/nagios-plugins.git
+      repo: https://github.com/HariSekhon/nagios-plugins.git
+      dest: /git/nagios-plugins
+      accept_hostkey: True
+    when: skip_check is defined and (skip_check.msg is not defined or 'check' not in skip_check.msg)
+
+  - name: 'create /git/nagios/plugins'
+    file:
+        dest: /git/nagios/plugins
+        state: directory
+        recurse: yes
+        owner: nagios
+        group: nagios
+
+  - name: "install extra plugins"
+    template: src={{ item }} dest=/git/nagios/plugins/{{ item }} mode=0755
+    with_items:
+      - check_mem.pl
+
+  - name: "install packages (for nagios-plugins)"
+    apt: name={{ item }} force=yes
+    with_items:
+    - libjson-perl
+    - libterm-readkey-perl
+    - libwww-perl
+    - libredis-perl
+
+  - name: "template nagios nrpe.cfg"
+    template: src="{{ item }}" dest="/etc/nagios/{{ item }}"
+    with_items:
+        - nrpe.cfg
+        - nrpe_local.cfg
+    notify: nrpe restart

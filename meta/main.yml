@@ -1,0 +1,2 @@
+#dependencies:
+#      - { role: mid_github_config }
